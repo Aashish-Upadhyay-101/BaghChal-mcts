@@ -23,13 +23,19 @@ class MCTS():
         """This function returns best move to play"""
         self.root = TreeNode(initial_state, None)
         
-        loop_time = time.time() + 20
-        while time.time() <= loop_time:
+        for i in range(5000):
             # select
+            print(i)
             node = self.select(self.root)
 
             # simulate 
             score = self.simulate(node.board)
+            if score == 0: 
+                print("Draw\n")
+            elif score == 1: 
+                print("Goat\n")
+            else:
+                print("Tiger\n")
 
             # backpropagation 
             self.backpropagation(node, score) 
@@ -61,14 +67,16 @@ class MCTS():
                 return new_node
 
     def simulate(self, board):
-        while not board.is_tiger_win() or not board.is_goat_win():
+        while not board.is_tiger_win() and not board.is_goat_win() and not board.is_draw():
             try:
                 board = random.choice(board.generate_states())
             except: 
                 return 0
-        
-        if board.player_2 == "G": return 1 
+
+        if board.is_draw(): return 0
+        elif board.player_2 == "G": return 1 
         elif board.player_2 == "T": return -1 
+
 
     def backpropagation(self, node, score):
         while node is not None: 
