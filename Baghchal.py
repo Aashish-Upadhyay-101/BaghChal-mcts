@@ -1,4 +1,3 @@
-from copy import deepcopy
 from mcts import *
 
 
@@ -10,6 +9,7 @@ class Board():
         self.size = 5
 
         self.tiger_positions = []
+        self.tiger_captured = 0
         self.goat_counts = 20
         self.goat_placed = 0 
         self.goat_eaten = 0
@@ -20,16 +20,26 @@ class Board():
             ((2, 1), (1, 0)), ((2, 1), (1, 2)), ((2, 3), (1, 2)), ((2, 3), (1, 4)),
             ((2, 1), (3, 0)), ((2, 1), (3, 2)), ((2, 3), (3, 2)), ((2, 3), (3, 4)),
             ((4, 1), (3, 0)), ((4, 1), (3, 2)), ((4, 3), (3, 2)), ((4, 3), (3, 4)),
+            ((0, 1), (2, 3)), ((1, 2), (3, 4)), ((1, 0), (3, 2)), ((2, 1), (4, 3)),
+            ((0, 3), (2, 1)), ((1, 2), (3, 0)), ((1, 4), (3, 2)), ((2, 3), (4, 1)),
         ]}
 
         self.position_history = {}
         self.moves_without_progress = 0 
 
-        self.init_board()
-        
-        if board is not None: 
-            self.__dict__ = deepcopy(board.__dict__)
-
+        if board is not None:
+            self.position = dict(board.position)
+            self.tiger_positions = list(board.tiger_positions)
+            self.goat_placed = board.goat_placed
+            self.goat_eaten = board.goat_eaten
+            self.player_1 = board.player_1
+            self.player_2 = board.player_2
+            self.tiger_captured = board.tiger_captured
+            self.position_history = board.position_history
+            self.moves_without_progress = board.moves_without_progress
+        else:
+            self.init_board()
+                
 
     def init_board(self):
         for row in range(self.size):
@@ -43,6 +53,52 @@ class Board():
             self.tiger_positions.append(position)
 
     
+    def best_tiger_positions_score(self):
+        best_positions = [(1, 1), (3, 1), (1, 3), (3, 3), (2, 2)]
+        
+        score = 0
+        for tiger_position in self.tiger_positions:
+            if tiger_position in best_positions:
+                score += 1
+        return score
+
+    
+    def goat_tiger_distance(self):
+        score = 0
+
+        goat_positions = self.get_goat_positions()
+        if len(goat_positions) == 0: 
+            return score
+
+        directions = [
+            (-1, 0), (1, 0), (0, -1), (0, 1), # horizontal and vertical moves
+            (-1, -1), (1, 1), (-1, 1), (1, -1),  # Diagonals
+        ]
+
+        for goat_position in goat_positions:
+            row, col = goat_position
+            for dr, dc in directions:
+                row_end = row + dr 
+                col_end = col + dc
+                if self.is_valid_move(goat_position, (row_end, col_end)) and self.position[row_end, col_end] == "T":
+                    score += 0.5
+                    
+        return score
+
+
+    def get_goat_cluster_score(self):
+        goat_positions = self.get_goat_positions()
+        return sum(self.calculate_distance(goat1, goat2) for goat1 in goat_positions for goat2 in goat_positions) 
+
+
+    def get_goat_positions(self):
+        return [(row, col) for row in range(self.size) for col in range(self.size) if self.position[row, col] == "G"]
+
+
+    def calculate_distance(self, pos1, pos2):
+        return math.sqrt(abs(pos1[0] - pos2[0])**2 + abs(pos1[1] - pos2[1])**2)
+
+
     def is_draw(self): 
         if self.moves_without_progress >= 50:
             return True 
@@ -56,7 +112,7 @@ class Board():
             return True
     
         return False
-            
+
 
     def is_valid_move(self, start, end):
         if not (0 <= end[0] < self.size and 0 <= end[1] < self.size): 
@@ -98,10 +154,7 @@ class Board():
                 col_end = col + dc
                 if self.is_valid_move(tiger_position, (row_end, col_end)):
                     return False
-            # for row in range(self.size):
-            #     for col in range(self.size): 
-            #         if self.is_valid_move(tiger_position, (row, col)):
-            #             return False 
+            self.tiger_captured += 1
         return True
 
 
@@ -187,7 +240,6 @@ class Board():
                     col_end = col + dc
                     if self.is_valid_move((row ,col), (row_end, col_end)):
                         actions.append(self.move_tiger((row ,col), (row_end, col_end)))
-
         return actions
     
     
@@ -300,7 +352,7 @@ class Board():
                     # move tiger
                     print("Tiger's turn(AI): ")
 
-                     # AI move 
+                    # AI move 
                     last_goat_eaten = self.goat_eaten
                     has_tiger_moves = not self.is_goat_win()
                 
@@ -354,6 +406,7 @@ class Board():
             print(self)
 
 
+
     def __str__(self):
         board_string = "" 
         for row in range(self.size):
@@ -369,11 +422,11 @@ if __name__ == "__main__":
     board = Board()
     board.game_loop()
 
-    # # ai vs ai 
+    # # # # ai vs ai 
+    # mcts = MCTS()
     # while True: 
     #     best_move = mcts.search(board) 
     #     board = best_move.board 
 
     #     print(board)
-
     #     input()
